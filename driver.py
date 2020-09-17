@@ -9,6 +9,7 @@ from time import sleep
 from email.message import EmailMessage
 import mimetypes
 from email.utils import make_msgid
+from string import Template
 
 from sys import exit
 
@@ -37,9 +38,9 @@ sender_email = args.sender
 locations = pd.read_csv(args.locations, index_col="num", dtype=str)
 data = pd.read_csv(args.data, dtype=str)
 with open(args.html) as fp:
-	msg_html = fp.read()
+	html_tmplt = Template(fp.read())
 with open(args.text) as fp:
-	msg_text = fp.read()
+	text_tmplt = Template(fp.read())
 
 imgs = []
 for img_str in args.img:
@@ -72,24 +73,20 @@ with smtplib.SMTP_SSL(smtp_server, port, context=context) if args.no_debug else 
 		row_mod = {}
 
 		for j, a in row.items():
+			j = j.lower().replace(" ", "_")
 			try:
 				loc_int = int(a)
 				row_mod[j] = locations.loc[loc_int, "location"]
 			except ValueError:
 				row_mod[j] = a if a != "" and a != " " else "Not Signed Up"
+		row_mod["name"] = row_mod["name"].split()[0]
+
 		# row = {j: locations[a] if a in locations else (a if a != "" and a != " " else "Not Signed Up") for j, a in row.items()}
 
-		row_data = (row_mod["name"].split()[0],
-			row_mod["Maariv 1"], row_mod["Shacharit Day 1"],
-			row_mod["Mussaf Day 1"], row_mod["Mincha 1"],
-			row_mod["Maariv 2"], row_mod["Shacharit Day 2"],
-			row_mod["Mussaf Day 2"], row_mod["Mincha 2"],
-			row_mod["Maariv 3"])
+		text = text_tmplt.substitute(row_mod)
 
-		text = msg_text % row_data
-		
-		# NOTE: all img tags must come after other tags
-		html = msg_html % tuple(list(row_data) + [img["cid"] for img in imgs])
+		row_mod.update({"img%d" % i: img["cid"] for i, img in enumerate(imgs)})
+		html = html_tmplt.substitute(row_mod)
 
 		email = EmailMessage()
 		email["Subject"] = args.subject
