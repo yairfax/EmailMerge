@@ -6,8 +6,9 @@ from smtpd import DebuggingServer
 import asyncore
 import threading
 from time import sleep
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
+from email.message import EmailMessage
+import mimetypes
+from email.utils import make_msgid
 
 from sys import exit
 
@@ -16,7 +17,9 @@ def run_debug_server():
 	asyncore.loop()
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--message", action="store", required=True)
+parser.add_argument("--html", action="store", required=True)
+parser.add_argument("--text", action="store", required=True)
+parser.add_argument("--img", action="store", nargs="+", default=[])
 parser.add_argument("--sent-from", action="store", required=True)
 parser.add_argument("--subject", action="store", required=True)
 parser.add_argument("--data", action="store", required=True)
@@ -33,7 +36,24 @@ sender_email = args.sender
 
 locations = pd.read_csv(args.locations, index_col="num", dtype=str)
 data = pd.read_csv(args.data, dtype=str)
-msg = open(args.message).read()
+with open(args.html) as fp:
+	msg_html = fp.read()
+with open(args.text) as fp:
+	msg_text = fp.read()
+
+imgs = []
+for img_str in args.img:
+	with open(img_str, "rb") as fp:
+		img = fp.read()
+		maintype, subtype = mimetypes.guess_type(fp.name)[0].split('/')
+		cid = make_msgid(domain=sender_email.split("@")[1])[1:-1]
+
+		imgs.append({
+			"img": img, 
+			"maintype": maintype,
+			"subtype": subtype,
+			"cid": cid
+		})
 
 if args.no_debug:
 	context = ssl.create_default_context()
@@ -59,19 +79,31 @@ with smtplib.SMTP_SSL(smtp_server, port, context=context) if args.no_debug else 
 				row_mod[j] = a if a != "" and a != " " else "Not Signed Up"
 		# row = {j: locations[a] if a in locations else (a if a != "" and a != " " else "Not Signed Up") for j, a in row.items()}
 
-		body = msg % (row_mod["name"].split()[0],
-		row_mod["Maariv 1"], row_mod["Shacharit Day 1"],
-		row_mod["Mussaf Day 1"], row_mod["Mincha 1"],
-		row_mod["Maariv 2"], row_mod["Shacharit Day 2"],
-		row_mod["Mussaf Day 2"], row_mod["Mincha 2"],
-		row_mod["Maariv 3"])
+		row_data = (row_mod["name"].split()[0],
+			row_mod["Maariv 1"], row_mod["Shacharit Day 1"],
+			row_mod["Mussaf Day 1"], row_mod["Mincha 1"],
+			row_mod["Maariv 2"], row_mod["Shacharit Day 2"],
+			row_mod["Mussaf Day 2"], row_mod["Mincha 2"],
+			row_mod["Maariv 3"])
 
-		email = MIMEMultipart("alternative")
+		text = msg_text % row_data
+		
+		# NOTE: all img tags must come after other tags
+		html = msg_html % tuple(list(row_data) + [img["cid"] for img in imgs])
+
+		email = EmailMessage()
 		email["Subject"] = args.subject
 		email["From"] = args.sent_from
 		email ["To"] = receiver_email
 
-		email.attach(MIMEText(body, "html"))
+		email.set_content(text)
+		email.add_alternative(html, subtype="html")
+
+		for img in imgs:
+			email.get_payload()[1].add_related(img["img"], 
+											maintype=img["maintype"], 
+											subtype=img["subtype"], 
+											cid=img["cid"])
 
 		server.sendmail(sender_email, receiver_email, email.as_string())
 
