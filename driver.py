@@ -6,6 +6,10 @@ from smtpd import DebuggingServer
 import asyncore
 import threading
 from time import sleep
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+
+from sys import exit
 
 def run_debug_server():
 	server = DebuggingServer(('localhost', 1025), None)
@@ -13,9 +17,12 @@ def run_debug_server():
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--message", action="store", required=True)
+parser.add_argument("--sent-from", action="store", required=True)
+parser.add_argument("--subject", action="store", required=True)
 parser.add_argument("--data", action="store", required=True)
 parser.add_argument("--sender", action="store", required=True)
 parser.add_argument("--password", action="store", required=True)
+parser.add_argument("--locations", action="store", required=True)
 parser.add_argument("--no-debug", action="store_true")
 args = parser.parse_args()
 
@@ -24,6 +31,7 @@ port = 465 if args.no_debug else 1025
 password = args.password
 sender_email = args.sender
 
+locations = pd.read_csv(args.locations, index_col="num", dtype=str)
 data = pd.read_csv(args.data, dtype=str)
 msg = open(args.message).read()
 
@@ -38,26 +46,34 @@ with smtplib.SMTP_SSL(smtp_server, port, context=context) if args.no_debug else 
 	if args.no_debug:
 		server.login(sender_email, password)
 
-	locations = {
-		"1": "Chapel Fields",
-		"2": "Behind Knight Hall",
-		"3": "Mowatt Parking Lot",
-		"4": "Lot O (Across from Domain)"
-	}
-
 	for i, row in data.iterrows():
 		receiver_email = row["email"]
 
-		row = {j: locations[a] if a in locations else (a if a != "" and a != " " else "Not Signed Up") for j, a in row.items()}
+		row_mod = {}
 
-		body = msg % (row["name"], row["name"].split()[0],
-		row["Maariv 1"], row["Shacharit Day 1"],
-		row["Mussaf Day 1"], row["Mincha 1"],
-		row["Maariv 2"], row["Shacharit Day 2"],
-		row["Mussaf Day 2"], row["Mincha 2"],
-		row["Maariv 3"])
+		for j, a in row.items():
+			try:
+				loc_int = int(a)
+				row_mod[j] = locations.loc[loc_int, "location"]
+			except ValueError:
+				row_mod[j] = a if a != "" and a != " " else "Not Signed Up"
+		# row = {j: locations[a] if a in locations else (a if a != "" and a != " " else "Not Signed Up") for j, a in row.items()}
 
-		server.sendmail(sender_email, receiver_email, body)
+		body = msg % (row_mod["name"].split()[0],
+		row_mod["Maariv 1"], row_mod["Shacharit Day 1"],
+		row_mod["Mussaf Day 1"], row_mod["Mincha 1"],
+		row_mod["Maariv 2"], row_mod["Shacharit Day 2"],
+		row_mod["Mussaf Day 2"], row_mod["Mincha 2"],
+		row_mod["Maariv 3"])
+
+		email = MIMEMultipart("alternative")
+		email["Subject"] = args.subject
+		email["From"] = args.sent_from
+		email ["To"] = receiver_email
+
+		email.attach(MIMEText(body, "html"))
+
+		server.sendmail(sender_email, receiver_email, email.as_string())
 
 if not args.no_debug:
 	th.join()
