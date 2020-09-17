@@ -106,19 +106,3 @@ with smtplib.SMTP_SSL(smtp_server, port, context=context) if args.no_debug else 
 
 if not args.no_debug:
 	th.join()
-
-# shtick_signature = """\
-# Daniella Bloch, Gabbait
-# Scott Sandor, Gabbai Rishon
-# Ryan Sweren, Gabbai Sheni
-# Gabbait Shenit, Emotional Support, and Real Power In Kedma, Miriam Charnoff
-# Gabbai Emeritus, Ari Israel
-# Gabbai Emeritus Emereitus and Resident Coder, Yair Fax
-# Gabbait Emeritusit, Tali Kosowski
-# Amos, Amos
-# Oh Right He Was Gabbai, Amitai Diament
-# Coup Gabbai, Yoni Rawson
-# Coup Gabbai Sheni, Eitan Griboff
-# Coup Gabbai Emeritus, Yaacov Greenspan
-# Keter, Mikey Pollack
-# """
