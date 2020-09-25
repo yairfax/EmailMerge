@@ -72,6 +72,8 @@ neima@fax.com,Neima Fax,hot dogs
 </html>
 ```
 
+Note that EmailMerge modifies the CSV headers to make them all lower case and replace spaces with underscores. So `Data 1` becomes tag `${data_1}`.
+
 ### Images
 
 EmailMerge supports including images in your email as attachments and embedded elements. Images are included from the command line using the `--img` flag. Note that this flag is optional, images need not be included. It also accepts any number of arguments, so you can include more than one image in your email.
