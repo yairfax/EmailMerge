@@ -236,5 +236,3 @@ As stated above, we can stack these plugins atop one another:
 ```bash
 python driver.py --plugins picnic name --locations-file locations.csv [...]
 ```
-
-Note that images cannot be used within the data source or in plugins. Meaning that images can only be included statically in the original email body, and the user cannot specify an image file in the merge data to be included specifically for each email. This will be fixed in an update.
