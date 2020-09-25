@@ -31,7 +31,7 @@ def get_args(cmd):
 	# So we can collect args from plugins. Geneva style
 	parser.add_argument('-h', '--help', action='store_true', default=False, help='print this help message and exit')
 	plugin_options = [path.split("/")[1].split(".")[0] for path in glob("plugins/*.py")]
-	parser.add_argument("--plugin", action="store", help="Python plugin for extra data processing. Python files should be in plugins/. See README.md for details", choices=plugin_options)
+	parser.add_argument("--plugins", action="store", choices=plugin_options, nargs="+", default=[], help="Python plugins for extra data processing. Python files should be in plugins/. See README.md for details")
 	
 	parser.add_argument("--html", action="store", help="HTML version of the email body. Images should be included with <img> tags with src='cid:${img0}', with increasing integers for each image.")
 	parser.add_argument("--text", action="store", help="Plain text version of the email body")
@@ -69,8 +69,7 @@ if __name__ == "__main__":
 	args = get_args(sys.argv[1:])
 
 	# Import plugin
-	if args.plugin:
-		plugin = __import__("plugins.%s" % args.plugin, fromlist=["object"]).Plugin(sys.argv[1:])
+	plugins = {plugin: __import__("plugins.%s" % plugin, fromlist=["object"]).Plugin(sys.argv[1:]) for plugin in args.plugins}
 
 	# Set up email details
 	smtp_server = args.smtp_server if args.no_debug else "localhost"
@@ -117,7 +116,9 @@ if __name__ == "__main__":
 		for i, row in tqdm(data.iterrows(), total=len(data)):
 			receiver_email = row["email"]
 
-			row_mod = plugin.process_row(row) if args.plugin else row
+			row_mod = row
+			for plugin_name, plugin in plugins.items():
+				row_mod = plugin.process_row(row_mod)
 
 			text = text_tmplt.substitute(row_mod)
 
