@@ -111,7 +111,7 @@ class Plugin:
 
 ```
 
-EmailMerge expects `Plugin` to have a `process_row` method, which takes a dict-like `row` as a parameter, modifies it, and returns it. It also expects an `__init__` function that takes `argv` as a parameter, and a static `get_args` method that also takes `argv` as a parameter. For an example that uses this, see the [next section](#an-involved-example). For our example, we can write it as such.
+EmailMerge expects `Plugin` to have a `process_row` method, which takes a dict-like `row` as a parameter, modifies it, and returns it. It also expects an `__init__` function that takes `argv` as a parameter, and a static `get_args` method that also takes `argv` as a parameter. For an example that uses this, see the [next section](#an-involved-example). For our example, we can write it as such. Note that this example and the [next one](#an-involved-example) are in the [plugins](plugins/) directory.
 
 ```python
 def __init__(self, argv):
