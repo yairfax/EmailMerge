@@ -2,3 +2,5 @@
 *.txt
 *.html
 *.jpg
+
+__pycache__
