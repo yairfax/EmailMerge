@@ -15,11 +15,10 @@ import numpy as np
 
 import sys
 
-def run_debug_server():
-	server = DebuggingServer(('localhost', 1025), None)
-	asyncore.loop()
-
 def get_args():
+	"""
+	Parse args for the email merge script.
+	"""
 	parser = argparse.ArgumentParser(description="Mail merge python script. Email body files should include Python template fields that match the headers of the CSV files. For example, a column 'data1' in the CSV file should have a correspoding ${data1} in the template. Note that all spaces in CSV headers are replaced with underscores, and all characters are put in lower case, so 'Data 1' becomes '${data_1}'.")
 	parser.add_argument("--html", action="store", required=True, help="HTML version of the email body. Images should be included with <img> tags with src='cid:${img0}', with increasing integers for each image.")
 	parser.add_argument("--text", action="store", required=True, help="Plain text version of the email body")
@@ -33,6 +32,10 @@ def get_args():
 	parser.add_argument("--locations", action="store", required=True)
 	parser.add_argument("--no-debug", action="store_true", help="Include this flag to really send the email. If this flag is not included, the emails will print to stdout.")
 	args = parser.parse_args()
+
+def run_debug_server():
+	server = DebuggingServer(('localhost', 1025), None)
+	asyncore.loop()
 
 if __name__ == "__main__":
 	args = get_args()
