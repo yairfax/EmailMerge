@@ -82,7 +82,7 @@ EmailMerge supports including images in your email as attachments and embedded e
 python driver.py [...] --img patio.jpg lawn.jpg
 ```
 
-To embed these images in your email, use `<img>` tags with `src='cid:${<img>}'` in your HTML file, where `<img>` is the filename of the image without the extension. So for the previous example, this is what your HTML would look like:
+To embed these images in your email, use `<img>` tags with `src='cid:<img>'` in your HTML file, where `<img>` is the filename of the image without the extension. So for the previous example, this is what your HTML would look like:
 
 ```html
 <html>
@@ -93,9 +93,9 @@ To embed these images in your email, use `<img>` tags with `src='cid:${<img>}'` 
       make it? <br />
       Because of COVID we can't host everyone in the same place, can you pick
       where you would rather sit? This is a picture of our patio.
-      <img src="cid:${patio}" />
+      <img src="cid:patio" />
       This is a picture of our lawn.
-      <img src="cid:${lawn}" />
+      <img src="cid:lawn" />
     </p>
   </body>
 </html>
@@ -152,9 +152,9 @@ neima@fax.com,Neima Fax,hot dogs,1
 We have a separate file `locations.csv`, that has the locations corresponding to the numbers, and the names of the images of the places they'll be sitting.
 
 ```csv
-num,location
-1,lawn
-2,patio
+num,location,location_img
+1,lawn,lawn.jpg
+2,patio,patio.jpg
 ```
 
 We also have to update our HTML and text files accordingly:
@@ -168,6 +168,8 @@ We also have to update our HTML and text files accordingly:
       make it? <br />
       Because of COVID we can't host everyone in the same place, so you're going
       to be sitting on the ${location}. <br />
+      This is a picture of where you'll be sitting.
+      <img src="cid:${location_img}" />
     </p>
   </body>
 </html>
@@ -201,18 +203,27 @@ def __init__(self, argv):
     self.locations = {}
 
     with open(self.locations_file, "r") as file:
-        reader = csv.reader(csvfile)
+        reader = csv.DictReader(file)
         for row in reader:
-            # Results in {num: location}
-            self.locations[row[0]] = row[1]
+            # Results in {num: {"location": location, "location_img": location_img}}
+            index = row["num"]
+            del row["num"]
+            row["location_img"] = row["location_img"].split(".")[0]
+            self.locations[index] = row
 ```
 
 We then need to write our `process_row` function which will actually modify the data. The value in the row as it is is the number of the location, and we need ot replace it with the location string.
 
 ```py
 def process_row(self, row):
-    row["location"] = self.locations[row["locations"]]
+    index = row["location"]
+    row["location"] = self.locations[index]["location"]
+    row["location_img"] = self.locations[index]["location_img"]
+
+    return row
 ```
+
+Note that `location_img` isn't part of the original data file. This is OK, we wrote our template expecting that our plugin would be called. Note also that both images will still be attached to each email, but only one will be placed where the tag is. This will be fixed in a future update.
 
 And we're done! We invoke this plugin thus:
 

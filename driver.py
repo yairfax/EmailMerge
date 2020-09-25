@@ -9,7 +9,6 @@ import threading
 from time import sleep
 from email.message import EmailMessage
 import mimetypes
-from email.utils import make_msgid
 from string import Template
 from tqdm import tqdm
 import sys
@@ -96,7 +95,6 @@ if __name__ == "__main__":
 		with open(img_str, "rb") as fp:
 			img = fp.read()
 			maintype, subtype = mimetypes.guess_type(fp.name)[0].split('/')
-			cid = make_msgid(domain=sender_email.split("@")[1])[1:-1]
 
 			imgs.append({
 				"tag": img_str.split(".")[0],
@@ -104,7 +102,6 @@ if __name__ == "__main__":
 				"img": img, 
 				"maintype": maintype,
 				"subtype": subtype,
-				"cid": cid
 			})
 
 	if args.no_debug:
@@ -130,8 +127,6 @@ if __name__ == "__main__":
 				row_mod = plugin.process_row(row_mod)
 
 			text = text_tmplt.substitute(row_mod)
-
-			row_mod.update({img["tag"]: img["cid"] for img in imgs})
 			html = html_tmplt.substitute(row_mod)
 
 			email = EmailMessage()
@@ -146,7 +141,7 @@ if __name__ == "__main__":
 				email.get_payload()[1].add_related(img["img"],
 												maintype=img["maintype"], 
 												subtype=img["subtype"], 
-												cid=img["cid"])
+												cid=img["tag"])
 											
 			server.sendmail(sender_email, receiver_email, email.as_string())
 
