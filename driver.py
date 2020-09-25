@@ -123,8 +123,10 @@ if __name__ == "__main__":
 				j = j.lower().replace(" ", "_")
 				row_mod[j] = a
 
+			imgs_lcl = imgs.copy()
+
 			for plugin_name, plugin in plugins.items():
-				row_mod = plugin.process_row(row_mod)
+				row_mod, imgs_lcl = plugin.process_row(row_mod, imgs_lcl)
 
 			text = text_tmplt.substitute(row_mod)
 			html = html_tmplt.substitute(row_mod)
@@ -137,7 +139,7 @@ if __name__ == "__main__":
 			email.set_content(text)
 			email.add_alternative(html, subtype="html")
 
-			for img in imgs:
+			for img in imgs_lcl:
 				email.get_payload()[1].add_related(img["img"],
 												maintype=img["maintype"], 
 												subtype=img["subtype"], 

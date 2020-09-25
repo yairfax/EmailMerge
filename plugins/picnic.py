@@ -24,9 +24,9 @@ class Plugin:
                 row["location_img"] = row["location_img"].split(".")[0]
                 self.locations[index] = row
 
-    def process_row(self, row):
+    def process_row(self, row, imgs):
         index = row["location"]
         row["location"] = self.locations[index]["location"]
         row["location_img"] = self.locations[index]["location_img"]
 
-        return row
+        return row, [img for img in imgs if img["tag"] == row["location_img"]]

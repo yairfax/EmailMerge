@@ -20,7 +20,7 @@ class Plugin:
 
         self.locations = pd.read_csv(self.args.location_file, index_col="num", dtype=str)
 
-    def process_row(self, row):
+    def process_row(self, row, imgs):
         """
         Substitue number in the CSV file with a location from the location file, and do other modifications for the Yamim Noraim email.
         Returns a dict with the minyan locations substituted for the numbers.
@@ -37,7 +37,7 @@ class Plugin:
             except ValueError:
                 row_mod[j] = a if a and a is not np.nan and a != "" and a != " " else "Not Signed Up"
         
-        return row_mod
+        return row_mod, [img for img in imgs if img["tag"] == row["location_img"]]
 
     def func(self):
         print(self.args)
