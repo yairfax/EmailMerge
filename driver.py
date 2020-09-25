@@ -20,23 +20,24 @@ def run_debug_server():
 	asyncore.loop()
 
 def get_args():
-	parser = argparse.ArgumentParser()
-	parser.add_argument("--html", action="store", required=True)
-	parser.add_argument("--text", action="store", required=True)
-	parser.add_argument("--img", action="store", nargs="+", default=[])
-	parser.add_argument("--sent-from", action="store", required=True)
-	parser.add_argument("--subject", action="store", required=True)
-	parser.add_argument("--data", action="store", required=True)
-	parser.add_argument("--sender", action="store", required=True)
-	parser.add_argument("--password", action="store", required=True)
+	parser = argparse.ArgumentParser(description="Mail merge python script. Email body files should include Python template fields that match the headers of the CSV files. For example, a column 'data1' in the CSV file should have a correspoding ${data1} in the template. Note that all spaces in CSV headers are replaced with underscores, and all characters are put in lower case, so 'Data 1' becomes '${data_1}'.")
+	parser.add_argument("--html", action="store", required=True, help="HTML version of the email body. Images should be included with <img> tags with src='cid:${img0}', with increasing integers for each image.")
+	parser.add_argument("--text", action="store", required=True, help="Plain text version of the email body")
+	parser.add_argument("--img", action="store", nargs="+", default=[], help="Images to be included in the email body. Images should be listed in the order they appear in the HTML file.")
+	parser.add_argument("--sent-from", action="store", required=True, help="Name to show as email sender")
+	parser.add_argument("--subject", action="store", required=True, help="Email subject")
+	parser.add_argument("--data", action="store", required=True, help="CSV file with entries. Columns should be 'name' and 'email', followed by the fields of the template.")
+	parser.add_argument("--sender", action="store", required=True, help="Sender email")
+	parser.add_argument("--password", action="store", required=True, help="Password for sender email")
+	parser.add_argument("--smtp", action="store", help="SMTP server to send from. Defaults to Gmail. Note that for Gmail, the sender's email must have certain security features turned off. See README.md for more details.", default="smtp.gmail.com")
 	parser.add_argument("--locations", action="store", required=True)
-	parser.add_argument("--no-debug", action="store_true")
+	parser.add_argument("--no-debug", action="store_true", help="Include this flag to really send the email. If this flag is not included, the emails will print to stdout.")
 	args = parser.parse_args()
 
 if __name__ == "__main__":
 	args = get_args()
 
-	smtp_server = "smtp.gmail.com" if args.no_debug else "localhost"
+	smtp_server = args.smtp if args.no_debug else "localhost"
 	port = 465 if args.no_debug else 1025
 	password = args.password
 	sender_email = args.sender
