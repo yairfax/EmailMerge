@@ -31,14 +31,11 @@ class Plugin:
         row_mod = {}
 
         for j, a in row.items():
-            j = j.lower().replace(" ", "_")
             try:
                 loc_int = int(a)
                 row_mod[j] = self.locations.loc[loc_int, "location"]
             except ValueError:
                 row_mod[j] = a if a and a is not np.nan and a != "" and a != " " else "Not Signed Up"
-
-        row_mod["name"] = row_mod["name"].split()[0]
         
         return row_mod
 
