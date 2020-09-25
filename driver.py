@@ -34,6 +34,9 @@ def get_args():
 	args = parser.parse_args()
 
 def run_debug_server():
+	"""
+	Function to be run by a thread to start the email debug server. Prints all emails to stdout.
+	"""
 	server = DebuggingServer(('localhost', 1025), None)
 	asyncore.loop()
 
