@@ -10,8 +10,10 @@ from email.message import EmailMessage
 import mimetypes
 from email.utils import make_msgid
 from string import Template
+from tqdm import tqdm
+import numpy as np
 
-from sys import exit
+import sys
 
 def run_debug_server():
 	server = DebuggingServer(('localhost', 1025), None)
@@ -50,6 +52,7 @@ for img_str in args.img:
 		cid = make_msgid(domain=sender_email.split("@")[1])[1:-1]
 
 		imgs.append({
+			"name": img_str,
 			"img": img, 
 			"maintype": maintype,
 			"subtype": subtype,
@@ -67,7 +70,7 @@ with smtplib.SMTP_SSL(smtp_server, port, context=context) if args.no_debug else 
 	if args.no_debug:
 		server.login(sender_email, password)
 
-	for i, row in data.iterrows():
+	for i, row in tqdm(data.iterrows(), total=len(data)):
 		receiver_email = row["email"]
 
 		row_mod = {}
@@ -78,7 +81,7 @@ with smtplib.SMTP_SSL(smtp_server, port, context=context) if args.no_debug else 
 				loc_int = int(a)
 				row_mod[j] = locations.loc[loc_int, "location"]
 			except ValueError:
-				row_mod[j] = a if a != "" and a != " " else "Not Signed Up"
+				row_mod[j] = a if a and a is not np.nan and a != "" and a != " " else "Not Signed Up"
 		row_mod["name"] = row_mod["name"].split()[0]
 
 		# row = {j: locations[a] if a in locations else (a if a != "" and a != " " else "Not Signed Up") for j, a in row.items()}
@@ -97,11 +100,11 @@ with smtplib.SMTP_SSL(smtp_server, port, context=context) if args.no_debug else 
 		email.add_alternative(html, subtype="html")
 
 		for img in imgs:
-			email.get_payload()[1].add_related(img["img"], 
+			email.get_payload()[1].add_related(img["img"],
 											maintype=img["maintype"], 
 											subtype=img["subtype"], 
 											cid=img["cid"])
-
+										
 		server.sendmail(sender_email, receiver_email, email.as_string())
 
 if not args.no_debug:
