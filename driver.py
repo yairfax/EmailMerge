@@ -13,6 +13,8 @@ from string import Template
 from tqdm import tqdm
 import sys
 import subprocess as sp
+from bs4 import BeautifulSoup
+import re
 
 # Grab the terminal size for printing
 try:
@@ -33,7 +35,7 @@ def get_args(cmd):
 	parser.add_argument("--plugins", action="store", choices=plugin_options, nargs="+", default=[], help="Python plugins for extra data processing. Python files should be in plugins/. See README.md for details")
 	
 	parser.add_argument("--html", action="store", help="HTML version of the email body. Images should be included with <img> tags with src='cid:${<img>}'. See README.md for more details.")
-	parser.add_argument("--text", action="store", help="Plain text version of the email body")
+	parser.add_argument("--text", action="store", help="Plain text version of the email body. If --text is not specified, the html file will be converted to text, sans image tags.")
 	parser.add_argument("--img", action="store", nargs="+", default=[], help="Images to be included in the email body. Images should be listed in the order they appear in the HTML file.")
 	parser.add_argument("--sent-from", action="store", help="Name to show as email sender")
 	parser.add_argument("--subject", action="store", help="Email subject")
@@ -60,13 +62,25 @@ def get_args(cmd):
 		raise SystemExit
 	return args
 
-
 def run_debug_server():
 	"""
 	Function to be run by a thread to start the email debug server. Prints all emails to stdout.
 	"""
 	server = DebuggingServer(('localhost', 1025), None)
 	asyncore.loop()
+
+def compile_html_to_text(html_str):
+	"""
+	Compile html string to text. Removes leading whitespace and all image tags.
+	Args:
+		html string to convert to text
+	"""
+	html_str = html_str.replace('\n', '')
+	html_str = re.sub(r'[\t ]+', ' ', html_str)
+	html = BeautifulSoup(html_str, features='html.parser')
+	text = html.get_text('\n')
+	text_0 = re.sub(r'\n[ \t]*', '\n', text) # strip leading whitespace from lines
+	return re.sub(r'(^\s*)|(\s*$)', '', text_0) # strip leading and trailing newliness
 
 if __name__ == "__main__":
 	args = get_args(sys.argv[1:])
@@ -86,8 +100,12 @@ if __name__ == "__main__":
 	# Read in text and html email bodies
 	with open(args.html) as fp:
 		html_tmplt = Template(fp.read())
-	with open(args.text) as fp:
-		text_tmplt = Template(fp.read())
+	
+	if args.txt:
+		with open(args.text) as fp:
+			text_tmplt = Template(fp.read())
+	else:
+		text_tmplt = compile_html_to_text(html_tmplt)
 
 	# Read in images for email body
 	imgs = []
