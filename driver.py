@@ -81,7 +81,7 @@ if __name__ == "__main__":
 	sender_email = args.sender
 
 	# Read in CSV with mail merge data
-	data = pd.read_csv(args.merge_data, dtype=str)
+	data = pd.read_csv(args.merge_data, dtype=str, index_col=False)
 
 	# Read in text and html email bodies
 	with open(args.html) as fp:

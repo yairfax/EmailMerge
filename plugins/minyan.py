@@ -33,11 +33,11 @@ class Plugin:
         for j, a in row.items():
             try:
                 loc_int = int(a)
+                if loc_int > 10:
+                    ## for other numbers that aren't minyan locations
+                    raise ValueError
                 row_mod[j] = self.locations.loc[loc_int, "location"]
             except ValueError:
                 row_mod[j] = a if a and a is not np.nan and a != "" and a != " " else "Not Signed Up"
         
         return row_mod, [img for img in imgs if img["tag"] == row["location_img"]]
-
-    def func(self):
-        print(self.args)
