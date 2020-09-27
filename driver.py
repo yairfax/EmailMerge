@@ -82,6 +82,42 @@ def compile_html_to_text(html_str):
 	text_0 = re.sub(r'\n[ \t]*', '\n', text) # strip leading whitespace from lines
 	return re.sub(r'(^\s*)|(\s*$)', '', text_0) # strip leading and trailing newliness
 
+def compile_text_to_html(text_str, imgs):
+	"""
+	Compile text file to html. All text will be included in one <p> tag, and any
+	images will be appended to the end of the <p> tag. All newlines will be
+	replaced with <br /> tags.
+	"""
+	soup = BeautifulSoup()
+	html_tag = soup.new_tag('html')
+	
+
+def get_html_txt(text_file, html_file, imgs):
+	"""
+	Read in html and text files from specified filenames. If html is not specified,
+	text will be compiled to html, and vice-versa. If only a text_file is specified
+	and there are images, the <img> tags will be appended to the end of the html body.
+	If neither html nor txt is specified, runtime error will be raised.
+	"""
+	if not text_file and not html_file:
+		raise RuntimeError('Need to specify either text file or html file')
+
+	if html_file:
+		with open(args.html) as fp:
+			html_txt = fp.read()
+	else:
+		# need to convert text to html, but don't have text yet
+		html_txt = None
+
+	if text_file:
+		with open(args.text) as fp:
+			text_txt = fp.read()
+	else:
+		text_txt = compile_html_to_text(html_txt)
+
+	if not html_txt:
+		html_txt = compile_text_to_html(text_txt)
+
 if __name__ == "__main__":
 	args = get_args(sys.argv[1:])
 
@@ -97,16 +133,6 @@ if __name__ == "__main__":
 	# Read in CSV with mail merge data
 	data = pd.read_csv(args.merge_data, dtype=str, index_col=False)
 
-	# Read in text and html email bodies
-	with open(args.html) as fp:
-		html_tmplt = Template(fp.read())
-	
-	if args.txt:
-		with open(args.text) as fp:
-			text_tmplt = Template(fp.read())
-	else:
-		text_tmplt = compile_html_to_text(html_tmplt)
-
 	# Read in images for email body
 	imgs = []
 	for img_str in args.img:
@@ -121,6 +147,9 @@ if __name__ == "__main__":
 				"maintype": maintype,
 				"subtype": subtype,
 			})
+
+	# Read in text and html email bodies
+	text_tmplt, html_tmplt = get_html_txt(args.text, args.html, imgs)
 
 	if args.no_debug:
 		context = ssl.create_default_context()
