@@ -39,7 +39,7 @@ Note that Gmail requires certain security features be disabled for us to connect
 
 ### Debugging
 
-By default, EmailMerge runs in debug mode. This will print all the emails to `stdout`. Note that if you're including images in your email they will be base64 encoded in stdout, so the output will likely be unreadable. To trunucate the output, consider piping EmailMerge through `head`:
+By default, EmailMerge runs in debug mode. This will print all the emails to `stdout`. Note that if you're including images in your email they will be base64 encoded in `stdout`, so the output will likely be unreadable. To trunucate the output, consider piping EmailMerge through `head`:
 
 ```bash
 python driver.py [...] | head -n 50
