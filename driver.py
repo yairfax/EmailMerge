@@ -105,7 +105,7 @@ def compile_text_to_html(text_str, imgs):
 		img_tag = soup.new_tag('img', src='cid:%s' % img["tag"], style="max-width: 100%")
 		body_tag.append(img_tag)
 
-	return soup
+	return str(soup)
 	
 def get_html_txt(text_file, html_file, imgs):
 	"""
@@ -132,6 +132,8 @@ def get_html_txt(text_file, html_file, imgs):
 
 	if not html_txt:
 		html_txt = compile_text_to_html(text_txt)
+
+	return text_txt, html_txt
 
 if __name__ == "__main__":
 	args = get_args(sys.argv[1:])
