@@ -9,11 +9,12 @@ import threading
 from time import sleep
 from email.message import EmailMessage
 import mimetypes
-from email.utils import make_msgid
 from string import Template
 from tqdm import tqdm
 import sys
 import subprocess as sp
+from bs4 import BeautifulSoup
+import re
 
 # Grab the terminal size for printing
 try:
@@ -34,7 +35,7 @@ def get_args(cmd):
 	parser.add_argument("--plugins", action="store", choices=plugin_options, nargs="+", default=[], help="Python plugins for extra data processing. Python files should be in plugins/. See README.md for details")
 	
 	parser.add_argument("--html", action="store", help="HTML version of the email body. Images should be included with <img> tags with src='cid:${<img>}'. See README.md for more details.")
-	parser.add_argument("--text", action="store", help="Plain text version of the email body")
+	parser.add_argument("--text", action="store", help="Plain text version of the email body. If --text is not specified, the html file will be converted to text, sans image tags.")
 	parser.add_argument("--img", action="store", nargs="+", default=[], help="Images to be included in the email body. Images should be listed in the order they appear in the HTML file.")
 	parser.add_argument("--sent-from", action="store", help="Name to show as email sender")
 	parser.add_argument("--subject", action="store", help="Email subject")
@@ -61,13 +62,76 @@ def get_args(cmd):
 		raise SystemExit
 	return args
 
-
 def run_debug_server():
 	"""
 	Function to be run by a thread to start the email debug server. Prints all emails to stdout.
 	"""
 	server = DebuggingServer(('localhost', 1025), None)
 	asyncore.loop()
+
+def compile_html_to_text(html_str):
+	"""
+	Compile html string to text. Removes leading whitespace and all image tags.
+	Args:
+		html string to convert to text
+	"""
+	html_str = html_str.replace('\n', '')
+	html_str = re.sub(r'[\t ]+', ' ', html_str)
+	html = BeautifulSoup(html_str, features='html.parser')
+	text = html.get_text('\n')
+	text_0 = re.sub(r'\n[ \t]*', '\n', text) # strip leading whitespace from lines
+	return re.sub(r'(^\s*)|(\s*$)', '', text_0) # strip leading and trailing newliness
+
+def compile_text_to_html(text_str, imgs):
+	"""
+	Compile text file to html. All text will be included in one <p> tag, and any
+	images will be appended to the end of the <body> tag. All newlines will be
+	replaced with <br /> tags.
+	"""
+	soup = BeautifulSoup()
+	soup.append(soup.new_tag('html'))
+	body_tag = soup.new_tag('body')
+	soup.html.append(body_tag)
+	p_tag = soup.new_tag('p')
+	body_tag.append(p_tag)
+
+	br_arr = [[soup.new_tag('br'), soup.new_string(line)] for line in text_str.split('\n')]
+	flattened_arr = [val for sublist in br_arr for val in sublist][1:]
+
+	for el in flattened_arr:
+		p_tag.append(el)
+
+	for img in imgs:
+		img_tag = soup.new_tag('img', src='cid:%s' % img["tag"], style="max-width: 100%")
+		body_tag.append(img_tag)
+
+	return soup
+	
+def get_html_txt(text_file, html_file, imgs):
+	"""
+	Read in html and text files from specified filenames. If html is not specified,
+	text will be compiled to html, and vice-versa. If only a text_file is specified
+	and there are images, the <img> tags will be appended to the end of the html body.
+	If neither html nor txt is specified, runtime error will be raised.
+	"""
+	if not text_file and not html_file:
+		raise RuntimeError('Need to specify either text file or html file')
+
+	if html_file:
+		with open(args.html) as fp:
+			html_txt = fp.read()
+	else:
+		# need to convert text to html, but don't have text yet
+		html_txt = None
+
+	if text_file:
+		with open(args.text) as fp:
+			text_txt = fp.read()
+	else:
+		text_txt = compile_html_to_text(html_txt)
+
+	if not html_txt:
+		html_txt = compile_text_to_html(text_txt)
 
 if __name__ == "__main__":
 	args = get_args(sys.argv[1:])
@@ -82,13 +146,7 @@ if __name__ == "__main__":
 	sender_email = args.sender
 
 	# Read in CSV with mail merge data
-	data = pd.read_csv(args.merge_data, dtype=str)
-
-	# Read in text and html email bodies
-	with open(args.html) as fp:
-		html_tmplt = Template(fp.read())
-	with open(args.text) as fp:
-		text_tmplt = Template(fp.read())
+	data = pd.read_csv(args.merge_data, dtype=str, index_col=False)
 
 	# Read in images for email body
 	imgs = []
@@ -96,16 +154,17 @@ if __name__ == "__main__":
 		with open(img_str, "rb") as fp:
 			img = fp.read()
 			maintype, subtype = mimetypes.guess_type(fp.name)[0].split('/')
-			cid = make_msgid(domain=sender_email.split("@")[1])[1:-1]
 
 			imgs.append({
-				"tag": img_str.split(".")[0],
+				"tag": img_str.split('/')[-1].split(".")[0],
 				"name": img_str,
 				"img": img, 
 				"maintype": maintype,
 				"subtype": subtype,
-				"cid": cid
 			})
+
+	# Read in text and html email bodies
+	text_tmplt, html_tmplt = get_html_txt(args.text, args.html, imgs)
 
 	if args.no_debug:
 		context = ssl.create_default_context()
@@ -126,12 +185,12 @@ if __name__ == "__main__":
 				j = j.lower().replace(" ", "_")
 				row_mod[j] = a
 
+			imgs_lcl = imgs.copy()
+
 			for plugin_name, plugin in plugins.items():
-				row_mod = plugin.process_row(row_mod)
+				row_mod, imgs_lcl = plugin.process_row(row_mod, imgs_lcl)
 
 			text = text_tmplt.substitute(row_mod)
-
-			row_mod.update({img["tag"]: img["cid"] for img in imgs})
 			html = html_tmplt.substitute(row_mod)
 
 			email = EmailMessage()
@@ -142,11 +201,11 @@ if __name__ == "__main__":
 			email.set_content(text)
 			email.add_alternative(html, subtype="html")
 
-			for img in imgs:
+			for img in imgs_lcl:
 				email.get_payload()[1].add_related(img["img"],
 												maintype=img["maintype"], 
 												subtype=img["subtype"], 
-												cid=img["cid"])
+												cid=img["tag"])
 											
 			server.sendmail(sender_email, receiver_email, email.as_string())
 

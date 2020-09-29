@@ -72,6 +72,8 @@ neima@fax.com,Neima Fax,hot dogs
 </html>
 ```
 
+Note that EmailMerge modifies the CSV headers to make them all lower case and replace spaces with underscores. So `Data 1` becomes tag `${data_1}`.
+
 ### Images
 
 EmailMerge supports including images in your email as attachments and embedded elements. Images are included from the command line using the `--img` flag. Note that this flag is optional, images need not be included. It also accepts any number of arguments, so you can include more than one image in your email.
@@ -80,7 +82,7 @@ EmailMerge supports including images in your email as attachments and embedded e
 python driver.py [...] --img patio.jpg lawn.jpg
 ```
 
-To embed these images in your email, use `<img>` tags with `src='cid:${<img>}'` in your HTML file, where `<img>` is the filename of the image without the extension. So for the previous example, this is what your HTML would look like:
+To embed these images in your email, use `<img>` tags with `src='cid:<img>'` in your HTML file, where `<img>` is the filename of the image without the extension. So for the previous example, this is what your HTML would look like:
 
 ```html
 <html>
@@ -91,9 +93,9 @@ To embed these images in your email, use `<img>` tags with `src='cid:${<img>}'` 
       make it? <br />
       Because of COVID we can't host everyone in the same place, can you pick
       where you would rather sit? This is a picture of our patio.
-      <img src="cid:${patio}" />
+      <img src="cid:patio" />
       This is a picture of our lawn.
-      <img src="cid:${lawn}" />
+      <img src="cid:lawn" />
     </p>
   </body>
 </html>
@@ -106,14 +108,16 @@ Note that embedded images should only be included in the HTML file, not the plai
 EmailMerge supports Python plugins to perform further modifications on the merge data before it's formatted for the email. Plugins should go in the plugin folder. As an example, we will write a plugin that transforms the full name into only the first name before formatting the email. We start by creating `name.py` in the `plugins` folder.  
 In our plugin file, we define a class called `Plugin`:
 
-```python
+```py
 class Plugin:
 
 ```
 
-EmailMerge expects `Plugin` to have a `process_row` method, which takes a dict-like `row` as a parameter, modifies it, and returns it. It also expects an `__init__` function that takes `argv` as a parameter, and a static `get_args` method that also takes `argv` as a parameter. For an example that uses this, see the [next section](#an-involved-example). For our example, we can write it as such.
+EmailMerge expects `Plugin` to have a `process_row` method, which modifies the row with the text that it wants to be formatted into the template, and filters the image list for images that should be attached to the email. The method takes in a `dict` called `row` which has all the fields from the CSV file and a `list` of `dict`s called `imgs`, which is the list of images to attach to the email. Each element of `imgs` has a field `img`, which is the literal bytes of the image, a field `tag` which is the filename without the extension, and a field `img_str` which is the full filename. If the plugin doesn't need to filter images it can simply return the parameter unchanged.
 
-```python
+It also expects an `__init__` function that takes `argv` as a parameter, and a static `get_args` method that also takes `argv` as a parameter. For an example that uses this, see the [next section](#an-involved-example). For our example, we can write it as such. Note that this example and the [next one](#an-involved-example) are in the [plugins](plugins/) directory.
+
+```py
 def __init__(self, argv):
     pass
 
@@ -121,10 +125,10 @@ def __init__(self, argv):
 def get_args(argv):
     pass
 
-def process_row(self, row):
+def process_row(self, row, imgs):
     row["name"] = row["name"].split(" ")[0]
 
-    return row
+    return row, imgs
 ```
 
 In our example, this will replace all full names with only first names, so that the email reads `Hi Yair,` instead of `Hi Yair Fax,`.  
@@ -150,9 +154,9 @@ neima@fax.com,Neima Fax,hot dogs,1
 We have a separate file `locations.csv`, that has the locations corresponding to the numbers, and the names of the images of the places they'll be sitting.
 
 ```csv
-num,location
-1,lawn
-2,patio
+num,location,location_img
+1,lawn,lawn.jpg
+2,patio,patio.jpg
 ```
 
 We also have to update our HTML and text files accordingly:
@@ -166,6 +170,8 @@ We also have to update our HTML and text files accordingly:
       make it? <br />
       Because of COVID we can't host everyone in the same place, so you're going
       to be sitting on the ${location}. <br />
+      This is a picture of where you'll be sitting.
+      <img src="cid:${location_img}" />
     </p>
   </body>
 </html>
@@ -176,7 +182,7 @@ We then need to write our plugin to replace `location` in our main merge data wi
 EmailMerge uses the [argparse library](https://docs.python.org/3/library/argparse.html) to parse its arguments, as should the static method `get_args` in the plugin. In fact, when the user calls `python driver.py -h`, EmailMerge will call `get_args` in each plugin and display its `argparse` help.  
 For our example, `get_args` needs to take in `locations.csv`.
 
-```python
+```py
 import argparse
 
 @staticmethod
@@ -190,7 +196,7 @@ def get_args(argv):
 
 In our `__init__` function we need to parse the arguments and store anything that we'll need for formatting later. In our example that means reading in the CSV file with the location data and storing it.
 
-```python
+```py
 import csv
 
 def __init__(self, argv):
@@ -199,18 +205,27 @@ def __init__(self, argv):
     self.locations = {}
 
     with open(self.locations_file, "r") as file:
-        reader = csv.reader(csvfile)
+        reader = csv.DictReader(file)
         for row in reader:
-            # Results in {num: location}
-            self.locations[row[0]] = row[1]
+            # Results in {num: {"location": location, "location_img": location_img}}
+            index = row["num"]
+            del row["num"]
+            row["location_img"] = row["location_img"].split(".")[0]
+            self.locations[index] = row
 ```
 
-We then need to write our `process_row` function which will actually modify the data. The value in the row as it is is the number of the location, and we need ot replace it with the location string.
+We then need to write our `process_row` function which will actually modify the data. The value in the row as it is is the number of the location, and we need ot replace it with the location string. We also need to filter the list of images to only include the image of the location where this guest will be sitting.
 
 ```py
-def process_row(self, row):
-    row["location"] = self.locations[row["locations"]]
+def process_row(self, row, imgs):
+    index = row["location"]
+    row["location"] = self.locations[index]["location"]
+    row["location_img"] = self.locations[index]["location_img"]
+
+    return row, [img for img in imgs if img["tag"] == row["location_img"]]
 ```
+
+Note that `location_img` isn't part of the original data file. This is OK, we wrote our template expecting that our plugin would be called.
 
 And we're done! We invoke this plugin thus:
 

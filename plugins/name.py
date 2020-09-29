@@ -6,7 +6,7 @@ class Plugin:
     def get_args(argv):
         pass
 
-    def process_row(self, row):
+    def process_row(self, row, imgs):
         row["name"] = row["name"].split(" ")[0]
 
-        return row
+        return row, imgs
