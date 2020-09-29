@@ -34,9 +34,9 @@ def get_args(cmd):
 	plugin_options = [path.split("/")[1].split(".")[0] for path in glob("plugins/*.py")]
 	parser.add_argument("--plugins", action="store", choices=plugin_options, nargs="+", default=[], help="Python plugins for extra data processing. Python files should be in plugins/. See README.md for details")
 	
-	parser.add_argument("--html", action="store", help="HTML version of the email body. Images should be included with <img> tags with src='cid:${<img>}'. See README.md for more details.")
-	parser.add_argument("--text", action="store", help="Plain text version of the email body. If --text is not specified, the html file will be converted to text, sans image tags.")
-	parser.add_argument("--img", action="store", nargs="+", default=[], help="Images to be included in the email body. Images should be listed in the order they appear in the HTML file.")
+	parser.add_argument("--html", action="store", help="HTML version of the email body. Images should be included with <img> tags with src='cid:<img>'. See README.md for more details. If --html is not specified, the text file will be converted to html.")
+	parser.add_argument("--text", action="store", help="Plain text version of the email body. If --text is not specified, the html file will be converted to text with image tags appended to the body.")
+	parser.add_argument("--img", action="store", nargs="+", default=[], help="Images to be attached.")
 	parser.add_argument("--sent-from", action="store", help="Name to show as email sender")
 	parser.add_argument("--subject", action="store", help="Email subject")
 	parser.add_argument("--merge-data", action="store", help="CSV file with merge entries. Columns should be 'email' and the fields of the template.")

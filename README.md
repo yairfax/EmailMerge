@@ -21,8 +21,8 @@ To run EmailMerge, run `driver.py`. The arguments `driver.py` takes are as follo
 | Tag             | Description                                                                                                        |
 | --------------- | ------------------------------------------------------------------------------------------------------------------ |
 | `--help`        | Print the help message                                                                                             |
-| `--html`        | An HTML version of the email body to send.                                                                         |
-| `--text`        | A plaintext version of the email body to send.                                                                     |
+| `--html`        | An HTML version of the email body to send. If no html is provided, the text will be compiled to html.              |
+| `--text`        | A plaintext version of the email body to send. If no text is provided, the html will be compiled to text.          |
 | `--img`         | Optional images to include in the body of the email. There can be mulitple images.                                 |
 | `--sent-from`   | String to include as the sender of the email. NOT the sender's email address.                                      |
 | `--subject`     | Subject of the email.                                                                                              |
@@ -102,6 +102,23 @@ To embed these images in your email, use `<img>` tags with `src='cid:<img>'` in 
 ```
 
 Note that embedded images should only be included in the HTML file, not the plaintext file. If the email client doesn't support HTML, the images will be included as attachments.
+
+### Text to HTML and HTML to Text Compilation
+
+Either `--html` or `--text`, and optionally both, must be provided. If both are provided, both will be used. If `--html` is not specified, the text file will be converted to HTML in the following format. All images will be appended to the end of the body of the email. Every newline character in the text file will be converted to a `<br/>` tag in the HTML.
+
+```html
+<html>
+  <body>
+    <p>
+      [text body]
+    <p>
+  <body>
+  [<img src="cid:<img>">]
+</html>
+```
+
+If `--text` is not specified, the HTML file will be compiled down to text. All `<img>` tags are removed and `<br />` characters are replaced with newlines, as are breaks between `<p>` tags. Note that images will still be attached to the email, but won't be included inline.
 
 ## Plugins
 
