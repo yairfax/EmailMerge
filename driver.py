@@ -85,13 +85,28 @@ def compile_html_to_text(html_str):
 def compile_text_to_html(text_str, imgs):
 	"""
 	Compile text file to html. All text will be included in one <p> tag, and any
-	images will be appended to the end of the <p> tag. All newlines will be
+	images will be appended to the end of the <body> tag. All newlines will be
 	replaced with <br /> tags.
 	"""
 	soup = BeautifulSoup()
-	html_tag = soup.new_tag('html')
-	
+	soup.append(soup.new_tag('html'))
+	body_tag = soup.new_tag('body')
+	soup.html.append(body_tag)
+	p_tag = soup.new_tag('p')
+	body_tag.append(p_tag)
 
+	br_arr = [[soup.new_tag('br'), soup.new_string(line)] for line in text_str.split('\n')]
+	flattened_arr = [val for sublist in br_arr for val in sublist][1:]
+
+	for el in flattened_arr:
+		p_tag.append(el)
+
+	for img in imgs:
+		img_tag = soup.new_tag('img', src='cid:%s' % img["tag"], style="max-width: 100%")
+		body_tag.append(img_tag)
+
+	return soup
+	
 def get_html_txt(text_file, html_file, imgs):
 	"""
 	Read in html and text files from specified filenames. If html is not specified,
@@ -141,7 +156,7 @@ if __name__ == "__main__":
 			maintype, subtype = mimetypes.guess_type(fp.name)[0].split('/')
 
 			imgs.append({
-				"tag": img_str.split(".")[0],
+				"tag": img_str.split('/')[-1].split(".")[0],
 				"name": img_str,
 				"img": img, 
 				"maintype": maintype,
